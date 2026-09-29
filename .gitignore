@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# PyInstaller
+build/
+
+# 打包产物与运行时依赖（体积大，不入库）
+dist/
+tools/
+
+# 运行日志
+startup.log
