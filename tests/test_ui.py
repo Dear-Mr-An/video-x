@@ -101,6 +101,19 @@ class UiTests(unittest.TestCase):
         w.sar_preset.setCurrentIndex(0)
         self.assertFalse(w.sar_w.isEnabled())
 
+    def test_encoder_switch(self):
+        w = self.window
+        self.assertEqual(w.encoder_mode, 'auto')
+        self.assertEqual(w._build_opts().encoder, 'auto')
+        w.encoder_btn.click()
+        self.assertEqual(w.encoder_mode, 'nvenc')
+        self.assertEqual(w._build_opts().encoder, 'nvenc')
+        w.encoder_btn.click()
+        self.assertEqual(w.encoder_mode, 'cpu')
+        self.assertEqual(w._build_opts().encoder, 'cpu')
+        w.encoder_btn.click()
+        self.assertEqual(w.encoder_mode, 'auto')
+
     def test_validation_without_opening_settings(self):
         w = self.window
         w.start_btn.click()

@@ -180,6 +180,7 @@ class MainWindow(QMainWindow):
         self.gpu_thread = None
         self.gpu_probe = None
         self.settings_dlg = None
+        self.encoder_mode = 'auto'
         self._close_pending = False
         self._build_ui()
         # Generating must not require opening the settings dialog first.
@@ -380,11 +381,27 @@ class MainWindow(QMainWindow):
         layout.addLayout(grid)
         layout.addStretch()
         layout.addWidget(line())
-        self.enc_label = label('H.264  /  60 FPS  /  NVENC', 'BlueText')
-        layout.addWidget(self.enc_label)
+        enc_row = QHBoxLayout()
+        enc_row.setSpacing(8)
+        self.enc_label = label('H.264  /  60 FPS  /  自动', 'BlueText')
+        enc_row.addWidget(self.enc_label)
+        enc_row.addStretch()
+        self.encoder_btn = button('编码：自动', 'chip', callback=self._cycle_encoder)
+        enc_row.addWidget(self.encoder_btn)
+        layout.addLayout(enc_row)
         self.output_summary = label('')
         layout.addWidget(self.output_summary)
         return card
+
+    def _cycle_encoder(self):
+        cycle = {'auto': 'nvenc', 'nvenc': 'cpu', 'cpu': 'auto'}
+        self.encoder_mode = cycle.get(self.encoder_mode, 'auto')
+        self._update_encoder_ui()
+
+    def _update_encoder_ui(self):
+        names = {'auto': '自动', 'nvenc': 'NVENC', 'cpu': 'CPU'}
+        self.encoder_btn.setText('编码：' + names[self.encoder_mode])
+        self.enc_label.setText('H.264  /  60 FPS  /  ' + names[self.encoder_mode])
 
     def _build_task_card(self):
         card = QFrame(objectName='Card')
@@ -630,6 +647,7 @@ class MainWindow(QMainWindow):
         opts.magic_enabled = self.magic_chk.isChecked()
         opts.magic_mode = self.magic_mode.currentText()
         opts.magic_size = self.magic_size.value()
+        opts.encoder = self.encoder_mode
         return opts
 
     def _set_status(self, text, state='idle'):

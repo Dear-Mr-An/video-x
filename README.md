@@ -10,8 +10,12 @@
 python main.py
 ```
 
-依赖：Python 3 + PySide6；需要 NVIDIA 显卡（NVENC 硬编码）。
+依赖：Python 3 + PySide6；推荐 NVIDIA 显卡（NVENC 硬件加速，无 N 卡可用 CPU 软编码）。
 `tools/` 目录放置 `ffmpeg.exe`、`ffprobe.exe`（不入库，请从 ffmpeg 官网下载放入）。
+
+- 编码器：主界面参数区可切换 `自动 / NVENC / CPU`
+  - 自动：检测到 NVENC 用硬件加速，否则回退 CPU 软编码
+  - 无 NVIDIA 显卡时选 CPU 即可正常使用（速度较慢）
 
 - 实拍视频：插入素材中的片段来源（循环使用）
 - 素材视频：输出骨架，决定输出时长

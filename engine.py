@@ -67,6 +67,31 @@ FFPROBE = _find_tool('ffprobe')
 # Windows 下隐藏子进程控制台窗口(打包为无控制台程序时避免黑屏弹窗)
 _NO_WINDOW_KW = {'creationflags': 0x08000000} if os.name == 'nt' else {}
 
+_NVENC_OK = None
+
+
+def detect_nvenc():
+    """检测本机 NVENC 是否可用(结果缓存)"""
+    global _NVENC_OK
+    if _NVENC_OK is None:
+        try:
+            r = _run([FFMPEG, '-v', 'error', '-f', 'lavfi',
+                      '-i', 'color=black:s=256x256:d=0.05',
+                      '-c:v', 'h264_nvenc', '-f', 'null', '-'])
+            _NVENC_OK = (r.returncode == 0)
+        except Exception:
+            _NVENC_OK = False
+    return _NVENC_OK
+
+
+def resolve_encoder(mode):
+    """auto -> 按可用性选择; 返回 ffmpeg 编码器名"""
+    if mode == 'nvenc':
+        return 'h264_nvenc'
+    if mode == 'cpu':
+        return 'libx264'
+    return 'h264_nvenc' if detect_nvenc() else 'libx264'
+
 
 def _run(cmd, **kw):
     kw.setdefault('stdout', subprocess.PIPE)
@@ -690,6 +715,7 @@ class AbOptions(object):
         self.magic_enabled = False
         self.magic_mode = '固定'
         self.magic_size = 670.0
+        self.encoder = 'auto'
 
 
 class AbJob(object):
@@ -750,12 +776,21 @@ class AbJob(object):
             enc += ['-i', material_path]
         else:
             enc += ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo']
-        enc += ['-map', '0:v', '-map', '1:a',
-                '-c:v', 'h264_nvenc', '-rc', 'cbr', '-b:v', VIDEO_BITRATE,
-                '-maxrate', '10M', '-bufsize', '20M',
-                '-profile:v', 'main', '-level', '3.2', '-g', '18', '-bf', '3',
-                '-pix_fmt', 'yuv420p',
-                '-vf', 'setsar=1,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709',
+        codec = resolve_encoder(getattr(self.o, 'encoder', 'auto'))
+        self.log('编码器: %s' % ('NVENC 硬件加速' if codec == 'h264_nvenc' else 'CPU 软编码'))
+        if codec == 'h264_nvenc':
+            enc += ['-map', '0:v', '-map', '1:a',
+                    '-c:v', 'h264_nvenc', '-rc', 'cbr', '-b:v', VIDEO_BITRATE,
+                    '-maxrate', '10M', '-bufsize', '20M',
+                    '-profile:v', 'main', '-level', '3.2', '-g', '18', '-bf', '3',
+                    '-pix_fmt', 'yuv420p']
+        else:
+            enc += ['-map', '0:v', '-map', '1:a',
+                    '-c:v', 'libx264', '-preset', 'medium', '-b:v', '10M',
+                    '-maxrate', '10M', '-bufsize', '20M',
+                    '-profile:v', 'main', '-level', '3.2', '-g', '18', '-bf', '3',
+                    '-pix_fmt', 'yuv420p']
+        enc += ['-vf', 'setsar=1,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709',
                 '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-ar', '44100',
                 '-video_track_timescale', '15360',
                 '-t', '%.6f' % (total / 60.0)]
